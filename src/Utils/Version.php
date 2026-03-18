@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright © 2021 Magento. All rights reserved.
  * See COPYING.txt for license details.
@@ -10,8 +11,8 @@ namespace Magento\ComposerDependencyVersionAuditPlugin\Utils;
 use Composer\Composer;
 use Composer\DependencyResolver\Pool;
 use Composer\Package\PackageInterface;
-use Composer\Repository\RepositoryInterface;
 use Composer\Package\Version\VersionSelector;
+use Composer\Repository\RepositoryInterface;
 use Composer\Repository\RepositorySet;
 use Exception;
 
@@ -42,7 +43,7 @@ class Version
             $bestCandidate = $this->findBestCandidateComposer2($composer, $packageName, $repository);
         }
 
-        if($bestCandidate instanceof PackageInterface){
+        if ($bestCandidate instanceof PackageInterface) {
             return $bestCandidate;
         }
         return null;

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright © 2021 Magento. All rights reserved.
  * See COPYING.txt for license details.
@@ -7,32 +8,31 @@ declare(strict_types=1);
 
 namespace Magento\ComposerDependencyVersionAuditPlugin;
 
+use Composer\Composer;
+use Composer\Config;
+use Composer\DependencyResolver\Operation\InstallOperation;
+use Composer\DependencyResolver\Pool;
 use Composer\DependencyResolver\Request;
 use Composer\Factory;
-use Composer\IO\NullIO;
-use Composer\Plugin\PrePoolCreateEvent;
-use Composer\Semver\Constraint\Constraint;
-use Magento\ComposerDependencyVersionAuditPlugin\Utils\Version;
-use PHPUnit\Framework\TestCase;
-use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\Installer\PackageEvent;
-use Composer\Composer;
-use Composer\Package\PackageInterface;
-use Composer\Repository\ComposerRepository;
 use Composer\IO\IOInterface;
+use Composer\IO\NullIO;
+use Composer\Package\PackageInterface;
+use Composer\Plugin\PrePoolCreateEvent;
+use Composer\Repository\ComposerRepository;
 use Composer\Repository\RepositoryManager;
-use Composer\Config;
-use PHPUnit\Framework\MockObject\MockObject;
-use Composer\DependencyResolver\Pool;
-use Composer\Util\HttpDownloader;
 use Composer\Repository\RepositorySet;
+use Composer\Semver\Constraint\Constraint;
+use Composer\Util\HttpDownloader;
+use Magento\ComposerDependencyVersionAuditPlugin\Utils\Version;
+use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test for Class Magento\ComposerDependencyVersionAuditPlugin\Plugin
  */
 class PluginTest extends TestCase
 {
-
     /**
      * @var Plugin
      */
@@ -120,7 +120,7 @@ class PluginTest extends TestCase
     /**#@+
      * Package name constant for test
      */
-    const PACKAGE_NAME = 'foo/some-test-package';
+    public const PACKAGE_NAME = 'foo/some-test-package';
 
     /**
      * Initialize Dependencies
@@ -179,7 +179,6 @@ class PluginTest extends TestCase
                 ->method('getRequest')
                 ->willReturn($this->requestMock);
         }
-
 
         $this->packageMock = $this->getMockBuilder(PackageInterface::class)
             ->onlyMethods(['getName', 'getFullPrettyVersion'])
@@ -270,20 +269,20 @@ class PluginTest extends TestCase
 
         $constraintMock->expects($this->any())
             ->method('getPrettyString')
-            ->willReturn("1.0.5");
+            ->willReturn('1.0.5');
 
         if ((int)explode('.', Composer::VERSION)[0] === 1) {
             $this->requestMock->expects($this->any())
                 ->method('getJobs')
                 ->willReturn([
-                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => true, 'constraint' => $constraintMock]
+                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => true, 'constraint' => $constraintMock],
                 ]);
         } else {
 
             $this->requestMock->expects($this->any())
                 ->method('getRequires')
                 ->willReturn([
-                    self::PACKAGE_NAME => $constraintMock
+                    self::PACKAGE_NAME => $constraintMock,
                 ]);
 
             $this->prePoolCreateMock->expects($this->any())
@@ -302,7 +301,7 @@ class PluginTest extends TestCase
     public function testInvalidPackageUpdateWithWarning(): void
     {
         $privateRepoUrl = 'https://example.org';
-        $publicRepoVersion ='1.0.5';
+        $publicRepoVersion = '1.0.5';
         $privateRepoVersion = '1.0.1';
 
         $this->repositoryMock1->expects($this->any())
@@ -328,7 +327,7 @@ class PluginTest extends TestCase
 
         $constraintMock->expects($this->any())
             ->method('getPrettyString')
-            ->willReturn("1.0.5");
+            ->willReturn('1.0.5');
 
         $packageName = self::PACKAGE_NAME;
         $exceptionMessage = "<warning>Higher matching version {$publicRepoVersion} of {$packageName} was found in public repository packagist.org 
@@ -339,14 +338,14 @@ class PluginTest extends TestCase
             $this->requestMock->expects($this->any())
                 ->method('getJobs')
                 ->willReturn([
-                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => true, 'constraint' => $constraintMock]
+                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => true, 'constraint' => $constraintMock],
                 ]);
         } else {
 
             $this->requestMock->expects($this->any())
                 ->method('getRequires')
                 ->willReturn([
-                    self::PACKAGE_NAME => $constraintMock
+                    self::PACKAGE_NAME => $constraintMock,
                 ]);
 
             $this->prePoolCreateMock->expects($this->any())
@@ -373,7 +372,7 @@ class PluginTest extends TestCase
     public function testInvalidPackageUpdateWithException(): void
     {
         $privateRepoUrl = 'https://example.org';
-        $publicRepoVersion ='1.0.5';
+        $publicRepoVersion = '1.0.5';
         $privateRepoVersion = '1.0.1';
 
         $this->repositoryMock1->expects($this->any())
@@ -399,20 +398,20 @@ class PluginTest extends TestCase
 
         $constraintMock->expects($this->any())
             ->method('getPrettyString')
-            ->willReturn("1.0.*");
+            ->willReturn('1.0.*');
 
         if ((int)explode('.', Composer::VERSION)[0] === 1) {
             $this->requestMock->expects($this->any())
                 ->method('getJobs')
                 ->willReturn([
-                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => false, 'constraint' => $constraintMock]
+                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => false, 'constraint' => $constraintMock],
                 ]);
         } else {
 
             $this->requestMock->expects($this->any())
                 ->method('getRequires')
                 ->willReturn([
-                    self::PACKAGE_NAME => $constraintMock
+                    self::PACKAGE_NAME => $constraintMock,
                 ]);
 
             $this->prePoolCreateMock->expects($this->any())
@@ -438,7 +437,7 @@ class PluginTest extends TestCase
     public function testUpdateUnstablePackageWithException(): void
     {
         $privateRepoUrl = 'https://example.org';
-        $publicRepoVersion ='1.9.0-beta1';
+        $publicRepoVersion = '1.9.0-beta1';
         $privateRepoVersion = '1.8.0';
 
         $this->repositoryMock1->expects($this->any())
@@ -460,7 +459,7 @@ class PluginTest extends TestCase
 
         $constraintMock->expects($this->any())
             ->method('getPrettyString')
-            ->willReturn("^1.9.0-beta1");
+            ->willReturn('^1.9.0-beta1');
 
         $this->versionSelectorMock->expects($this->any())
             ->method('findBestCandidate')
@@ -470,14 +469,14 @@ class PluginTest extends TestCase
             $this->requestMock->expects($this->any())
                 ->method('getJobs')
                 ->willReturn([
-                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => false, 'constraint' => $constraintMock]
+                    ['packageName' => self::PACKAGE_NAME, 'cmd' => 'install', 'fixed' => false, 'constraint' => $constraintMock],
                 ]);
         } else {
 
             $this->requestMock->expects($this->any())
                 ->method('getRequires')
                 ->willReturn([
-                    self::PACKAGE_NAME => $constraintMock
+                    self::PACKAGE_NAME => $constraintMock,
                 ]);
 
             $this->prePoolCreateMock->expects($this->any())

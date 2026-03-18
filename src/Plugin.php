@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright © 2021 Magento. All rights reserved.
  * See COPYING.txt for license details.
@@ -14,13 +15,13 @@ use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
+use Composer\Package\PackageInterface;
 use Composer\Plugin\PluginEvents;
 use Composer\Plugin\PluginInterface;
 use Composer\Plugin\PrePoolCreateEvent;
 use Composer\Repository\ComposerRepository;
 use Composer\Repository\FilterRepository;
 use Composer\Repository\RepositoryInterface;
-use Composer\Package\PackageInterface;
 use Exception;
 use Magento\ComposerDependencyVersionAuditPlugin\Utils\Version;
 
@@ -29,11 +30,10 @@ use Magento\ComposerDependencyVersionAuditPlugin\Utils\Version;
  */
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
-
     /**#@+
      * URL For Public Packagist Repo
      */
-    const URL_REPO_PACKAGIST = 'https://repo.packagist.org';
+    public const URL_REPO_PACKAGIST = 'https://repo.packagist.org';
 
     /**
      * @var Composer
@@ -55,7 +55,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         'dotmailer',
         'braintree',
         'paypal',
-        'gene'
+        'gene',
     ];
 
     /**
@@ -101,7 +101,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     {
         $events = [
             Installer\PackageEvents::PRE_PACKAGE_INSTALL => 'packageUpdate',
-            Installer\PackageEvents::PRE_PACKAGE_UPDATE => 'packageUpdate'
+            Installer\PackageEvents::PRE_PACKAGE_UPDATE => 'packageUpdate',
         ];
 
         if ((int)explode('.', Composer::VERSION)[0] === 2) {
@@ -121,8 +121,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             $constraintList = [];
             foreach ($request->getJobs() as $job) {
                 if ($job['cmd'] === 'install' &&
-                    (strpbrk((string) $job['constraint']->getPrettyString(), "*^-~") ||
-                        preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $job['constraint']->getPrettyString()
+                    (
+                        strpbrk((string) $job['constraint']->getPrettyString(), '*^-~') ||
+                        preg_match(
+                            '{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}',
+                            (string) $job['constraint']->getPrettyString()
                         )
                     )
                 ) {
@@ -150,7 +153,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             foreach ($event->getRequest()->getRequires() as $name => $constraint) {
                 $prettyString = $constraint->getPrettyString();
                 $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $prettyString);
-                if (strpbrk((string) $prettyString, "*^-~") || $multiConstraint){
+                if (strpbrk((string) $prettyString, '*^-~') || $multiConstraint) {
                     $constraintList[$name] = true;
                 }
             }
@@ -162,8 +165,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 foreach ($package->getRequires() as $name => $constraint) {
                     $prettyConstraint = $constraint->getPrettyConstraint();
                     $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $prettyConstraint);
-                    if (strpbrk((string) $prettyConstraint, "*^-~")|| $multiConstraint)
+                    if (strpbrk((string) $prettyConstraint, '*^-~') || $multiConstraint) {
                         $constraintList[$name] = true;
+                    }
                 }
             }
 
@@ -191,22 +195,22 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $privateRepoVersion = '';
         $publicRepoVersion = '';
         $privateRepoUrl = '';
-        [$namespace, $project] = explode("/", (string) $packageName);
+        [$namespace, $project] = explode('/', (string) $packageName);
         $isPackageVBE = in_array($namespace, self::VBE_ALLOW_LIST, true);
 
         if ((int)explode('.', Composer::VERSION)[0] === 1) {
             $this->getNonFixedConstraintList($event->getRequest());
         }
 
-        if(!$isPackageVBE) {
+        if (!$isPackageVBE) {
             foreach ($this->composer->getRepositoryManager()->getRepositories() as $repository) {
                 $found = $this->versionSelector->findBestCandidate($this->composer, $packageName, $repository);
-                $repoUrl = "";
+                $repoUrl = '';
                 /** @var RepositoryInterface $repository */
                 if ($repository instanceof ComposerRepository) {
                     $repoUrl = $repository->getRepoConfig()['url'];
 
-                } else if ($repository instanceof FilterRepository) {
+                } elseif ($repository instanceof FilterRepository) {
                     $repoUrl = $repository->getRepository()->getRepoConfig()['url'];
                 }
                 if ($found) {
