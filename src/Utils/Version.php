@@ -30,10 +30,6 @@ class Version
     /**
      * Get Highest version package
      *
-     * @param Composer $composer
-     * @param string $packageName
-     * @param RepositoryInterface $repository
-     * @return PackageInterface|null
      * @throws Exception
      */
     public function findBestCandidate(Composer $composer, string $packageName, RepositoryInterface $repository): ?PackageInterface
@@ -55,9 +51,6 @@ class Version
     /**
      * Get Highest version package for Composer V1
      *
-     * @param Composer $composer
-     * @param string $packageName
-     * @param RepositoryInterface $repository
      * @return PackageInterface|false
      */
     public function findBestCandidateComposer1(Composer $composer, string $packageName, RepositoryInterface $repository)
@@ -75,9 +68,6 @@ class Version
     /**
      * Get Highest version package for Composer V2
      *
-     * @param Composer $composer
-     * @param string $packageName
-     * @param RepositoryInterface $repository
      * @return PackageInterface|false
      */
     public function findBestCandidateComposer2(Composer $composer, string $packageName, RepositoryInterface $repository)

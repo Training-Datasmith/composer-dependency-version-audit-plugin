@@ -40,15 +40,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private $composer;
 
-    /**
-     * @var Version
-     */
-    private $versionSelector;
+    private ?\Magento\ComposerDependencyVersionAuditPlugin\Utils\Version $versionSelector;
 
-    /**
-     * @var array
-     */
-    private $nonFixedPackages;
+    private ?array $nonFixedPackages = null;
 
     /**#@+
      * Constant for VBE ALLOW LIST
@@ -66,7 +60,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     /**
      * Initialize dependencies
-     * @param Version|null $version
      */
     public function __construct(?Version $version = null)
     {
@@ -80,7 +73,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * @inheritdoc
      */
-    public function activate(Composer $composer, IOInterface $io)
+    public function activate(Composer $composer, IOInterface $io): void
     {
         // Declaration must exist
     }
@@ -88,7 +81,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * @inheritdoc
      */
-    public function deactivate(Composer $composer, IOInterface $io)
+    public function deactivate(Composer $composer, IOInterface $io): void
     {
         // Declaration must exist
     }
@@ -96,15 +89,13 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * @inheritdoc
      */
-    public function uninstall(Composer $composer, IOInterface $io)
+    public function uninstall(Composer $composer, IOInterface $io): void
     {
         // Declaration must exist
     }
 
     /**
      * Event subscriber
-     *
-     * @return array
      */
     public static function getSubscribedEvents(): array
     {
@@ -123,9 +114,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Get all package installations that use non-fixed version constraints (IE: 2.4.*, ^2.4, etc.)
      * this needs to be done for Composer V1 installs since prePoolCreate event doesn't exist in V1
-     *
-     * @param Request $request
-     * @return array
      */
     private function getNonFixedConstraintList(Request $request): array
     {
@@ -133,8 +121,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             $constraintList = [];
             foreach ($request->getJobs() as $job) {
                 if ($job['cmd'] === 'install' &&
-                    (strpbrk($job['constraint']->getPrettyString(), "*^-~") ||
-                        preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', $job['constraint']->getPrettyString()
+                    (strpbrk((string) $job['constraint']->getPrettyString(), "*^-~") ||
+                        preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $job['constraint']->getPrettyString()
                         )
                     )
                 ) {
@@ -148,8 +136,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     /**
      * Event listener for PrePoolCreate event that is used for composer V2
-     *
-     * @param PrePoolCreateEvent $event
      */
     public function prePoolCreate(PrePoolCreateEvent $event): void
     {
@@ -163,8 +149,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
              */
             foreach ($event->getRequest()->getRequires() as $name => $constraint) {
                 $prettyString = $constraint->getPrettyString();
-                $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', $prettyString);
-                if (strpbrk($prettyString, "*^-~") || $multiConstraint){
+                $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $prettyString);
+                if (strpbrk((string) $prettyString, "*^-~") || $multiConstraint){
                     $constraintList[$name] = true;
                 }
             }
@@ -175,8 +161,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             foreach ($event->getPackages() as $package) {
                 foreach ($package->getRequires() as $name => $constraint) {
                     $prettyConstraint = $constraint->getPrettyConstraint();
-                    $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', $prettyConstraint);
-                    if (strpbrk($prettyConstraint, "*^-~")|| $multiConstraint)
+                    $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $prettyConstraint);
+                    if (strpbrk((string) $prettyConstraint, "*^-~")|| $multiConstraint)
                         $constraintList[$name] = true;
                 }
             }
@@ -188,8 +174,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Event listener for Package Install or Update
      *
-     * @param PackageEvent $event
-     * @return void
      * @throws Exception
      */
     public function packageUpdate(PackageEvent $event): void
@@ -207,7 +191,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $privateRepoVersion = '';
         $publicRepoVersion = '';
         $privateRepoUrl = '';
-        list($namespace, $project) = explode("/", $packageName);
+        [$namespace, $project] = explode("/", (string) $packageName);
         $isPackageVBE = in_array($namespace, self::VBE_ALLOW_LIST, true);
 
         if ((int)explode('.', Composer::VERSION)[0] === 1) {
@@ -226,7 +210,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                     $repoUrl = $repository->getRepository()->getRepoConfig()['url'];
                 }
                 if ($found) {
-                    if ($repoUrl && strpos($repoUrl, self::URL_REPO_PACKAGIST) !== false) {
+                    if ($repoUrl && str_contains((string) $repoUrl, self::URL_REPO_PACKAGIST)) {
                         $publicRepoVersion = $found->getFullPrettyVersion();
                     } else {
                         $currentPrivateRepoVersion = $found->getFullPrettyVersion();
@@ -246,9 +230,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
                 if ($this->nonFixedPackages && array_key_exists($packageName, $this->nonFixedPackages)) {
                     throw new Exception($exceptionMessage);
-                } else {
-                    $event->getIO()->writeError('<warning>' . $exceptionMessage . '</warning>');
                 }
+                $event->getIO()->writeError('<warning>' . $exceptionMessage . '</warning>');
             }
         }
     }
