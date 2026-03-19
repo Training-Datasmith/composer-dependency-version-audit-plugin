@@ -195,7 +195,12 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $privateRepoVersion = '';
         $publicRepoVersion = '';
         $privateRepoUrl = '';
-        [$namespace, $project] = explode('/', (string) $packageName);
+        $packageNameParts = explode('/', (string) $packageName, 2);
+        if (count($packageNameParts) !== 2) {
+            return;
+        }
+
+        [$namespace, $project] = $packageNameParts;
         $isPackageVBE = in_array($namespace, self::VBE_ALLOW_LIST, true);
 
         if ((int)explode('.', Composer::VERSION)[0] === 1) {
