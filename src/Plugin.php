@@ -4,243 +4,192 @@
  * Copyright © 2021 Magento. All rights reserved.
  * See COPYING.txt for license details.
  */
-declare(strict_types=1);
-
-namespace Magento\ComposerDependencyVersionAuditPlugin;
+declare (strict_types=1);
+namespace Magento\Composer_Dependency_Version_Audit_Plugin;
 
 use Composer\Composer;
-use Composer\DependencyResolver\Operation\OperationInterface;
-use Composer\DependencyResolver\Request;
-use Composer\EventDispatcher\EventSubscriberInterface;
+use Composer\Dependency_Resolver\Operation\Operation_Interface;
+use Composer\Dependency_Resolver\Request;
+use Composer\Event_Dispatcher\Event_Subscriber_Interface;
 use Composer\Installer;
-use Composer\Installer\PackageEvent;
-use Composer\IO\IOInterface;
-use Composer\Package\PackageInterface;
-use Composer\Plugin\PluginEvents;
-use Composer\Plugin\PluginInterface;
-use Composer\Plugin\PrePoolCreateEvent;
-use Composer\Repository\ComposerRepository;
-use Composer\Repository\FilterRepository;
-use Composer\Repository\RepositoryInterface;
+use Composer\Installer\Package_Event;
+use Composer\IO\Io_Interface;
+use Composer\Package\Package_Interface;
+use Composer\Plugin\Plugin_Events;
+use Composer\Plugin\Plugin_Interface;
+use Composer\Plugin\Pre_Pool_Create_Event;
+use Composer\Repository\Composer_Repository;
+use Composer\Repository\Filter_Repository;
+use Composer\Repository\Repository_Interface;
 use Exception;
-use Magento\ComposerDependencyVersionAuditPlugin\Utils\Version;
-
+use Magento\Composer_Dependency_Version_Audit_Plugin\Utils\Version;
 /**
  * Composer's entry point for the plugin
  */
-class Plugin implements PluginInterface, EventSubscriberInterface
+class Plugin implements Plugin_Interface, Event_Subscriber_Interface
 {
     /**#@+
      * URL For Public Packagist Repo
      */
     public const URL_REPO_PACKAGIST = 'https://repo.packagist.org';
-
     /**
      * @var Composer
      */
     private $composer;
-
-    private ?\Magento\ComposerDependencyVersionAuditPlugin\Utils\Version $versionSelector;
-
-    private ?array $nonFixedPackages = null;
-
+    private ?\Magento\Composer_Dependency_Version_Audit_Plugin\Utils\Version $version_selector;
+    private ?array $non_fixed_packages = null;
     /**#@+
      * Constant for VBE ALLOW LIST
      */
-    private const VBE_ALLOW_LIST = [
-        'vertexinc',
-        'yotpo',
-        'klarna',
-        'amzn',
-        'dotmailer',
-        'braintree',
-        'paypal',
-        'gene',
-    ];
-
+    private const VBE_ALLOW_LIST = ['vertexinc', 'yotpo', 'klarna', 'amzn', 'dotmailer', 'braintree', 'paypal', 'gene'];
     /**
      * Initialize dependencies
      */
     public function __construct(?Version $version = null)
     {
         if ($version) {
-            $this->versionSelector = $version;
+            $this->version_selector = $version;
         } else {
-            $this->versionSelector = new Version();
+            $this->version_selector = new Version();
         }
     }
-
     /**
      * @inheritdoc
      */
-    public function activate(Composer $composer, IOInterface $io): void
+    public function activate(Composer $composer, Io_Interface $io): void
     {
         // Declaration must exist
     }
-
     /**
      * @inheritdoc
      */
-    public function deactivate(Composer $composer, IOInterface $io): void
+    public function deactivate(Composer $composer, Io_Interface $io): void
     {
         // Declaration must exist
     }
-
     /**
      * @inheritdoc
      */
-    public function uninstall(Composer $composer, IOInterface $io): void
+    public function uninstall(Composer $composer, Io_Interface $io): void
     {
         // Declaration must exist
     }
-
     /**
      * Event subscriber
      */
-    public static function getSubscribedEvents(): array
+    public static function get_subscribed_events(): array
     {
-        $events = [
-            Installer\PackageEvents::PRE_PACKAGE_INSTALL => 'packageUpdate',
-            Installer\PackageEvents::PRE_PACKAGE_UPDATE => 'packageUpdate',
-        ];
-
-        if ((int)explode('.', Composer::VERSION)[0] === 2) {
-            $events[PluginEvents::PRE_POOL_CREATE] = 'prePoolCreate';
+        $events = [Installer\Package_Events::PRE_PACKAGE_INSTALL => 'packageUpdate', Installer\Package_Events::PRE_PACKAGE_UPDATE => 'packageUpdate'];
+        if ((int) explode('.', Composer::VERSION)[0] === 2) {
+            $events[Plugin_Events::PRE_POOL_CREATE] = 'prePoolCreate';
         }
-
         return $events;
     }
-
     /**
      * Get all package installations that use non-fixed version constraints (IE: 2.4.*, ^2.4, etc.)
      * this needs to be done for Composer V1 installs since prePoolCreate event doesn't exist in V1
      */
-    private function getNonFixedConstraintList(Request $request): array
+    private function get_non_fixed_constraint_list(Request $request): array
     {
-        if (!$this->nonFixedPackages) {
-            $constraintList = [];
-            foreach ($request->getJobs() as $job) {
-                if ($job['cmd'] === 'install' &&
-                    (
-                        strpbrk((string) $job['constraint']->getPrettyString(), '*^-~') ||
-                        preg_match(
-                            '{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}',
-                            (string) $job['constraint']->getPrettyString()
-                        )
-                    )
-                ) {
-                    $constraintList[$job['packageName']] = true;
+        if (!$this->non_fixed_packages) {
+            $constraint_list = [];
+            foreach ($request->get_jobs() as $job) {
+                if ($job['cmd'] === 'install' && (strpbrk((string) $job['constraint']->get_pretty_string(), '*^-~') || preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $job['constraint']->get_pretty_string()))) {
+                    $constraint_list[$job['packageName']] = true;
                 }
             }
-            $this->nonFixedPackages = $constraintList;
+            $this->non_fixed_packages = $constraint_list;
         }
-        return $this->nonFixedPackages;
+        return $this->non_fixed_packages;
     }
-
     /**
      * Event listener for PrePoolCreate event that is used for composer V2
      */
-    public function prePoolCreate(PrePoolCreateEvent $event): void
+    public function pre_pool_create(Pre_Pool_Create_Event $event): void
     {
-        if (!$this->nonFixedPackages) {
-            $constraintList = [];
-
+        if (!$this->non_fixed_packages) {
+            $constraint_list = [];
             /**
              * get all packages that are in the composer.json under require section, this will be the only time
              * we will be able to get constraints for packages in the require section as this request data isn't
              * shared in the installer event on composer v2
              */
-            foreach ($event->getRequest()->getRequires() as $name => $constraint) {
-                $prettyString = $constraint->getPrettyString();
-                $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $prettyString);
-                if (strpbrk((string) $prettyString, '*^-~') || $multiConstraint) {
-                    $constraintList[$name] = true;
+            foreach ($event->get_request()->get_requires() as $name => $constraint) {
+                $pretty_string = $constraint->get_pretty_string();
+                $multi_constraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $pretty_string);
+                if (strpbrk((string) $pretty_string, '*^-~') || $multi_constraint) {
+                    $constraint_list[$name] = true;
                 }
             }
-
             /**
              * get all sub packages that are now requirements for new packages to install and store their constraints.
              */
-            foreach ($event->getPackages() as $package) {
-                foreach ($package->getRequires() as $name => $constraint) {
-                    $prettyConstraint = $constraint->getPrettyConstraint();
-                    $multiConstraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $prettyConstraint);
-                    if (strpbrk((string) $prettyConstraint, '*^-~') || $multiConstraint) {
-                        $constraintList[$name] = true;
+            foreach ($event->get_packages() as $package) {
+                foreach ($package->get_requires() as $name => $constraint) {
+                    $pretty_constraint = $constraint->get_pretty_constraint();
+                    $multi_constraint = preg_match('{(?<!^|as|[=>< ,]) *(?<!-)[, ](?!-) *(?!,|as|$)}', (string) $pretty_constraint);
+                    if (strpbrk((string) $pretty_constraint, '*^-~') || $multi_constraint) {
+                        $constraint_list[$name] = true;
                     }
                 }
             }
-
-            $this->nonFixedPackages = $constraintList;
+            $this->non_fixed_packages = $constraint_list;
         }
     }
-
     /**
      * Event listener for Package Install or Update
      *
      * @throws Exception
      */
-    public function packageUpdate(PackageEvent $event): void
+    public function package_update(Package_Event $event): void
     {
         /** @var  OperationInterface */
-        $operation = $event->getOperation();
-        $this->composer = $event->getComposer();
-
+        $operation = $event->get_operation();
+        $this->composer = $event->get_composer();
         /** @var PackageInterface $package  */
-        $package = method_exists($operation, 'getPackage')
-            ? $operation->getPackage()
-            : $operation->getInitialPackage();
-
-        $packageName = $package->getName();
-        $privateRepoVersion = '';
-        $publicRepoVersion = '';
-        $privateRepoUrl = '';
-        $packageNameParts = explode('/', (string) $packageName, 2);
-        if (count($packageNameParts) !== 2) {
+        $package = method_exists($operation, 'getPackage') ? $operation->get_package() : $operation->get_initial_package();
+        $package_name = $package->get_name();
+        $private_repo_version = '';
+        $public_repo_version = '';
+        $private_repo_url = '';
+        $package_name_parts = explode('/', (string) $package_name, 2);
+        if (count($package_name_parts) !== 2) {
             return;
         }
-
-        [$namespace, $project] = $packageNameParts;
-        $isPackageVBE = in_array($namespace, self::VBE_ALLOW_LIST, true);
-
-        if ((int)explode('.', Composer::VERSION)[0] === 1) {
-            $this->getNonFixedConstraintList($event->getRequest());
+        [$namespace, $project] = $package_name_parts;
+        $is_package_vbe = in_array($namespace, self::VBE_ALLOW_LIST, true);
+        if ((int) explode('.', Composer::VERSION)[0] === 1) {
+            $this->get_non_fixed_constraint_list($event->get_request());
         }
-
-        if (!$isPackageVBE) {
-            foreach ($this->composer->getRepositoryManager()->getRepositories() as $repository) {
-                $found = $this->versionSelector->findBestCandidate($this->composer, $packageName, $repository);
-                $repoUrl = '';
+        if (!$is_package_vbe) {
+            foreach ($this->composer->get_repository_manager()->get_repositories() as $repository) {
+                $found = $this->version_selector->find_best_candidate($this->composer, $package_name, $repository);
+                $repo_url = '';
                 /** @var RepositoryInterface $repository */
-                if ($repository instanceof ComposerRepository) {
-                    $repoUrl = $repository->getRepoConfig()['url'];
-
-                } elseif ($repository instanceof FilterRepository) {
-                    $repoUrl = $repository->getRepository()->getRepoConfig()['url'];
+                if ($repository instanceof Composer_Repository) {
+                    $repo_url = $repository->get_repo_config()['url'];
+                } elseif ($repository instanceof Filter_Repository) {
+                    $repo_url = $repository->get_repository()->get_repo_config()['url'];
                 }
                 if ($found) {
-                    if ($repoUrl && str_contains((string) $repoUrl, self::URL_REPO_PACKAGIST)) {
-                        $publicRepoVersion = $found->getFullPrettyVersion();
+                    if ($repo_url && str_contains((string) $repo_url, self::URL_REPO_PACKAGIST)) {
+                        $public_repo_version = $found->get_full_pretty_version();
                     } else {
-                        $currentPrivateRepoVersion = $found->getFullPrettyVersion();
+                        $current_private_repo_version = $found->get_full_pretty_version();
                         //private repo version should hold highest version of package
-                        if (empty($privateRepoVersion) || version_compare($currentPrivateRepoVersion, $privateRepoVersion, '>')) {
-                            $privateRepoVersion = $currentPrivateRepoVersion;
-                            $privateRepoUrl = $repoUrl;
+                        if (empty($private_repo_version) || version_compare($current_private_repo_version, $private_repo_version, '>')) {
+                            $private_repo_version = $current_private_repo_version;
+                            $private_repo_url = $repo_url;
                         }
                     }
                 }
             }
-
-            if ($privateRepoVersion && $publicRepoVersion && version_compare($publicRepoVersion, $privateRepoVersion, '>')) {
-                $exceptionMessage = "Higher matching version {$publicRepoVersion} of {$packageName} was found in public repository packagist.org 
-                             than {$privateRepoVersion} in private {$privateRepoUrl}. Public package might've been taken over by a malicious entity, 
-                             please investigate and update package requirement to match the version from the private repository";
-
-                if ($this->nonFixedPackages && array_key_exists($packageName, $this->nonFixedPackages)) {
-                    throw new Exception($exceptionMessage);
+            if ($private_repo_version && $public_repo_version && version_compare($public_repo_version, $private_repo_version, '>')) {
+                $exception_message = "Higher matching version {$public_repo_version} of {$package_name} was found in public repository packagist.org \n                             than {$private_repo_version} in private {$private_repo_url}. Public package might've been taken over by a malicious entity, \n                             please investigate and update package requirement to match the version from the private repository";
+                if ($this->non_fixed_packages && array_key_exists($package_name, $this->non_fixed_packages)) {
+                    throw new Exception($exception_message);
                 }
-                $event->getIO()->writeError('<warning>' . $exceptionMessage . '</warning>');
+                $event->get_io()->write_error('<warning>' . $exception_message . '</warning>');
             }
         }
     }
